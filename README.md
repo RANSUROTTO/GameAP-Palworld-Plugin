@@ -6,11 +6,11 @@
 
 | 服务器 | 玩家 | 公告 |
 |:---:|:---:|:---:|
-| ![服务器](docs/images/page1.png) | ![玩家](docs/images/page2.png) | ![公告](docs/images/page3.png) |
+| ![服务器](docs/images/screenshot-server.png) | ![玩家](docs/images/screenshot-players.png) | ![公告](docs/images/screenshot-announce.png) |
 
 | 玩家管理 | 世界观 |
 |:---:|:---:|
-| ![玩家管理](docs/images/page4.png) | ![世界观](docs/images/page5.png) |
+| ![玩家管理](docs/images/screenshot-player-mgmt.png) | ![世界观](docs/images/screenshot-world.png) |
 
 ## 功能
 
