@@ -1,0 +1,28 @@
+# Binary files - do not modify
+*.png binary -text -diff -merge
+*.jpg binary -text -diff -merge
+*.gif binary -text -diff -merge
+*.ico binary -text -diff -merge
+*.wasm binary -text -diff -merge
+*.exe binary -text -diff -merge
+*.dll binary -text -diff -merge
+*.so binary -text -diff -merge
+*.dylib binary -text -diff -merge
+
+# Text files
+*.go text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+
+# PowerShell scripts
+*.ps1 text eol=crlf
+
+# Shell scripts
+*.sh text eol=lf

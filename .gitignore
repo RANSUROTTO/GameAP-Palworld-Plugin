@@ -1,0 +1,24 @@
+# Node.js
+node_modules/
+frontend/node_modules/
+
+# Go build cache
+go-cache/
+gocache/
+gopath/
+
+# Build output
+dist/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

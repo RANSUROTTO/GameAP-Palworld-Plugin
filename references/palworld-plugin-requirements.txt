@@ -1,0 +1,319 @@
+结论先说：如果目标只是“复刻当前帕鲁卡片”，GameAP 会比 MCSManager 复杂约 2～3 倍；但完成以后会更规范、更安全，也更容易长期扩展。
+
+MCSManager 适合快速塞入一张 HTML 卡片；GameAP 更适合做真正的“帕鲁插件”。
+
+## 两套结构对比
+
+你现在的 MCS 方案：
+
+```text
+MCSManager
+  └─ 自定义 HTML 卡片
+        └─ 浏览器请求 PalBridge:8213
+              └─ Palworld REST API:8212
+```
+
+GameAP 原生插件建议做成：
+
+```text
+GameAP 前端插件（Vue）
+  └─ 请求同源插件接口 /api/plugins/palworld/*
+        └─ GameAP WASM 后端插件
+              └─ Palworld REST API:8212
+```
+
+这样迁移后可以删除：
+
+- `pal-bridge.ps1`
+- Bridge Key
+- `8213` 端口
+- AllowedOrigins/CORS 配置
+- HTML 中写死的 Bridge 地址
+- 浏览器访问 `localhost` 带来的问题
+
+GameAP 后端插件能够注册自定义 HTTP 接口、调用外部 HTTP API、监听服务器启动/停止事件，并控制 GameAP 实例。[GameAP 插件系统说明](https://pkg.go.dev/github.com/gameap/gameap/pkg/plugin)
+
+## 实际需要写什么
+
+建议建立下面的项目结构：
+
+```text
+gameap-palworld-plugin/
+├─ backend/
+│  ├─ go.mod
+│  ├─ main.go
+│  ├─ plugin.go
+│  ├─ routes.go
+│  ├─ palclient.go
+│  ├─ models.go
+│  └─ validation.go
+│
+├─ frontend/
+│  ├─ package.json
+│  ├─ vite.config.ts
+│  ├─ src/
+│  │  ├─ index.ts
+│  │  ├─ api.ts
+│  │  ├─ PalworldPage.vue
+│  │  ├─ components/
+│  │  │  ├─ ServerOverview.vue
+│  │  │  ├─ PlayerTable.vue
+│  │  │  ├─ AnnouncePanel.vue
+│  │  │  ├─ PlayerActions.vue
+│  │  │  ├─ WorldActions.vue
+│  │  │  └─ SnapshotPanel.vue
+│  │  └─ locales/
+│  │     └─ zh-CN.ts
+│  └─ style.css
+│
+└─ plugin-manifest/
+```
+
+### 后端 WASM 插件
+
+后端主要负责三件事：
+
+1. 保存 Palworld API 地址、用户名和密码
+2. 代理浏览器请求到 `127.0.0.1:8212`
+3. 检查用户权限、参数和危险操作
+
+配置大致为：
+
+```text
+pal_api_base=http://127.0.0.1:8212/v1/api
+pal_api_username=admin
+pal_api_password=新的密码
+gameap_server_id=帕鲁实例ID
+```
+
+插件初始化：
+
+```go
+func (p *Plugin) Initialize(
+    ctx context.Context,
+    req *proto.InitializeRequest,
+) (*proto.InitializeResponse, error) {
+    p.apiBase = req.Config["pal_api_base"]
+    p.username = req.Config["pal_api_username"]
+    p.password = req.Config["pal_api_password"]
+
+    return &proto.InitializeResponse{
+        Result: &proto.Result{Success: true},
+    }, nil
+}
+```
+
+注册接口：
+
+```go
+func (p *Plugin) GetHTTPRoutes(
+    ctx context.Context,
+    req *proto.GetHTTPRoutesRequest,
+) (*proto.GetHTTPRoutesResponse, error) {
+    return &proto.GetHTTPRoutesResponse{
+        Routes: []*proto.HTTPRoute{
+            {Path: "/palworld/info", Methods: []string{"GET"}},
+            {Path: "/palworld/players", Methods: []string{"GET"}},
+            {Path: "/palworld/announce", Methods: []string{"POST"}},
+            {Path: "/palworld/kick", Methods: []string{"POST"}},
+            {Path: "/palworld/ban", Methods: []string{"POST"}},
+            {Path: "/palworld/unban", Methods: []string{"POST"}},
+            {Path: "/palworld/save", Methods: []string{"POST"}},
+            {Path: "/palworld/shutdown", Methods: []string{"POST"}},
+            {Path: "/palworld/stop", Methods: []string{"POST"}},
+            {Path: "/palworld/game-data", Methods: []string{"GET"}},
+            {Path: "/palworld/metrics", Methods: []string{"GET"}},
+        },
+    }, nil
+}
+```
+
+其对应关系为：
+
+| GameAP 插件接口 | Palworld 官方接口 |
+|---|---|
+| `/palworld/info` | `/v1/api/info` |
+| `/palworld/players` | `/v1/api/players` |
+| `/palworld/announce` | `/v1/api/announce` |
+| `/palworld/kick` | `/v1/api/kick` |
+| `/palworld/ban` | `/v1/api/ban` |
+| `/palworld/unban` | `/v1/api/unban` |
+| `/palworld/save` | `/v1/api/save` |
+| `/palworld/shutdown` | `/v1/api/shutdown` |
+| `/palworld/stop` | `/v1/api/stop` |
+| `/palworld/game-data` | `/v1/api/game-data` |
+| `/palworld/metrics` | `/v1/api/metrics` |
+
+GameAP 的 WASM 插件不能随意直接访问网络，需要通过它提供的 `gameap-http` 能力调用 Palworld API。这反而更安全，因为插件权限可以受到宿主限制。
+
+编译后端：
+
+```powershell
+tinygo build `
+  -o palworld-plugin.wasm `
+  -target=wasip1 `
+  -buildmode=c-shared `
+  .
+```
+
+官方目前推荐 TinyGo，因为生成的 WASM 文件更小。插件必须采用 reactor/c-shared 方式构建，否则加载后会直接退出。[插件构建说明](https://pkg.go.dev/github.com/gameap/gameap/pkg/plugin)
+
+## 前端插件
+
+前端不再是一整个 HTML 字符串，而是 Vue 3 页面。
+
+核心入口大致是：
+
+```ts
+import PalworldPage from "./PalworldPage.vue";
+import "./style.css";
+
+export default {
+  id: "palworld-control",
+  name: "Palworld 控制中心",
+
+  serverPages: [
+    {
+      id: "palworld",
+      title: "幻兽帕鲁",
+      icon: "gamepad",
+      component: PalworldPage
+    }
+  ]
+};
+```
+
+接口调用：
+
+```ts
+export async function getPlayers() {
+  const response = await fetch(
+    "/api/plugins/palworld-control/palworld/players",
+    {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json"
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`玩家接口错误：${response.status}`);
+  }
+
+  return response.json();
+}
+```
+
+页面组件：
+
+```vue
+<script setup lang="ts">
+import { onMounted, onUnmounted, ref } from "vue";
+import { getInfo, getMetrics, getPlayers } from "./api";
+
+const info = ref(null);
+const metrics = ref(null);
+const players = ref([]);
+let timer: number | undefined;
+
+async function refresh() {
+  [info.value, metrics.value] = await Promise.all([
+    getInfo(),
+    getMetrics()
+  ]);
+}
+
+onMounted(async () => {
+  await Promise.all([refresh(), loadPlayers()]);
+  timer = window.setInterval(refresh, 15000);
+});
+
+onUnmounted(() => {
+  if (timer) window.clearInterval(timer);
+});
+</script>
+```
+
+界面可以直接使用 GameAP 的 `@gameap/ui` 组件库。它包含状态徽章、表格、按钮、图标以及暗色模式支持，因此不需要像 MCS 卡片一样自己猜测面板主题。[GameAP UI 组件](https://www.npmjs.com/package/@gameap/ui)
+
+前端构建：
+
+```powershell
+npm install
+npm run build
+```
+
+输出通常包含：
+
+```text
+dist/
+├─ index.js
+└─ style.css
+```
+
+GameAP 也提供了专门的前端插件调试工具，可以加载真实 GameAP 前端、模拟服务器和用户权限，并支持插件热更新。[GameAP 插件调试工具](https://www.npmjs.com/package/@gameap/debug)
+
+## GameAP 中配置 PalServer
+
+除了插件，还需要先让 GameAP 接管 PalServer。
+
+大致操作：
+
+1. 安装 GameAP Web/API。
+2. 安装同机 GameAP Daemon。
+3. 创建自定义游戏 `palworld`。
+4. 添加一个 Palworld Mod/运行模板。
+5. 设置工作目录为 `C:\PalServer`。
+6. 设置启动命令。
+7. 创建游戏服务器实例。
+8. 确认 GameAP 能启动、停止 PalServer。
+9. 再安装 Palworld 插件。
+
+GameAP 官方允许添加未内置的游戏，并设置 Steam App ID、启动命令、工作目录和启动变量。[添加自定义游戏说明](https://docs.gameap.com/tutorials/additional_games.html)
+
+需要特别注意：不能让 MCSManager 和 GameAP 同时接管同一个 PalServer 进程。测试迁移时应该：
+
+1. 先关闭 MCSManager 对 PalServer 的自动重启。
+2. 保留 `C:\PalServer` 完整备份。
+3. 确认 PalServer 已停止。
+4. 再让 GameAP 第一次启动它。
+
+## 开发复杂度对比
+
+| 项目 | MCS 当前方案 | GameAP 原生插件 |
+|---|---:|---:|
+| 前端 | 单个 HTML | Vue + TypeScript |
+| 后端 | PowerShell Bridge | Go/TinyGo WASM |
+| 构建步骤 | 无 | npm + TinyGo |
+| 主题适配 | 自己判断 | 使用 GameAP UI |
+| 权限 | Bridge Key | GameAP 用户/RBAC |
+| API 密码 | Bridge 配置文件 | 插件后端配置 |
+| CORS | 需要处理 | 同源接口，不需要 |
+| 远程访问 | 容易遇到 localhost 问题 | 不受影响 |
+| 实例启动停止 | MCS 管理 | GameAP 原生管理 |
+| 后期增加功能 | HTML 越来越大 | 组件化扩展 |
+| 初次开发难度 | 低 | 中高 |
+| 长期维护 | 中等偏麻烦 | 更规范 |
+
+## 工作量判断
+
+如果只做成你当前卡片的功能范围：
+
+- MCSManager 卡片：大约是一个 HTML 加一个 Bridge。
+- GameAP 前端调用现有 Bridge：工作量约为 MCS 的 1.5 倍，但仍保留 Bridge/CORS 问题。
+- GameAP 原生前后端插件：工作量约为 MCS 的 2～3 倍。
+- 再加中文翻译、权限控制、自动安装与插件发布：可能达到 3～4 倍。
+
+但是 GameAP 原生插件完成后，后续添加功能反而更简单，比如：
+
+- 将“帕鲁管理”作为实例详情页的原生标签
+- 根据 GameAP 用户权限隐藏封禁/关服按钮
+- PalServer 启动后自动检查 REST API
+- 关服前自动调用保存世界
+- 自动记录谁踢了玩家
+- 把服务器指标接入统一监控
+- 多台 PalServer 使用不同 API 配置
+- 不再暴露 Bridge Key
+
+我的判断是：当前只有一台 PalServer、不到十人，继续用 MCS 卡片更加省事；如果确定以后会增加多台 MC/Palworld 服务器、多用户权限和独立网站，那么 GameAP 原生插件架构更值得做。它不是“更简单”，而是“前期更复杂、完成后更正规”。
