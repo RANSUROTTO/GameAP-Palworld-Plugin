@@ -19,14 +19,13 @@
 - 发公告
 - 保存世界、安全关服、强制停止
 - 每个服务器实例独立配置 REST 连接
-- 管理员才能操作
 
 ## 环境要求
 
 - Go 1.26+
 - Node.js 20 或 22
 - pnpm
-- Docker Desktop（开了 WSL 2）
+- Docker （不是必须的）
 
 ## 目录结构
 
@@ -174,8 +173,6 @@ services:
       PLUGIN_HTTP_ALLOWED_SCHEMES: http,https
       PLUGIN_HTTP_ALLOWED_HOSTS: host.docker.internal
 ```
-
-只能访问 `host.docker.internal`，别乱开内网地址。
 
 ## API 接口
 
