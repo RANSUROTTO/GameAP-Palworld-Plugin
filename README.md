@@ -1,83 +1,86 @@
 # GameAP Palworld REST Control
 
-这个插件给 GameAP 加了个 Palworld 服务器管理标签页。后端用 WASM 代理 Palworld REST API。
+English | [中文](README_zh.md)
 
-## 运行截图
+A native Palworld server management tab for GameAP. Uses WASM backend to proxy the official Palworld REST API, so passwords never reach the browser.
 
-| 服务器 | 玩家 | 公告 |
+## Screenshots
+
+| Server | Players | Announce |
 |:---:|:---:|:---:|
-| ![服务器](docs/images/screenshot-server.png) | ![玩家](docs/images/screenshot-players.png) | ![公告](docs/images/screenshot-announce.png) |
+| ![Server](docs/images/screenshot-server.png) | ![Players](docs/images/screenshot-players.png) | ![Announce](docs/images/screenshot-announce.png) |
 
-| 玩家管理 | 世界观 |
+| Player Management | World Settings |
 |:---:|:---:|
-| ![玩家管理](docs/images/screenshot-player-mgmt.png) | ![世界观](docs/images/screenshot-world.png) |
+| ![Player Management](docs/images/screenshot-player-mgmt.png) | ![World Settings](docs/images/screenshot-world.png) |
 
-## 功能
+## Features
 
-- 查看服务器状态、在线玩家、性能指标
-- 踢人、封禁、解封
-- 发公告
-- 保存世界、安全关服、强制停止
-- 每个服务器实例独立配置 REST 连接
+- View server status, online players, performance metrics
+- Kick, ban, unban players
+- Send announcements
+- Save world, graceful shutdown, force stop
+- Independent REST config per server instance
+- Admin-only operations
 
-## 环境要求
+## Requirements
 
 - Go 1.26+
-- Node.js 20 或 22
+- Node.js 20 or 22
 - pnpm
-- Docker （不是必须的）
+- Docker Desktop (with WSL 2 enabled)
 
-## 目录结构
+## Project Structure
 
 ```
 GameAP-Palworld-Plugin\
-├─ frontend\              # Vue 前端
+├─ frontend\              # Vue frontend
 │  ├─ src\
 │  │  ├─ index.ts
 │  │  └─ PalworldTab.vue
-│  ├─ dist\               # 前端构建产物
+│  ├─ dist\               # Frontend build output
 │  ├─ package.json
 │  └─ vite.config.js
-├─ main.go                # WASM 后端
+├─ main.go                # WASM backend
 ├─ go.mod
 ├─ go.sum
-├─ dist\                  # WASM 构建产物
+├─ dist\                  # WASM build output
 │  └─ gameap-palworld-plugin.wasm
-├─ docs\                  # 截图
-├─ build.ps1              # 一键构建脚本
+├─ docs\                  # Screenshots
+├─ build.ps1              # One-click build script
 └─ README.md
 ```
 
-## 构建
+## Build
 
-### 一键构建
+### One-click build
 
 ```powershell
 .\build.ps1
 ```
 
-### 手动构建
+### Manual build
 
-装前端依赖：
+Install frontend dependencies:
 
 ```powershell
 cd frontend
 pnpm install
 ```
 
-如果 pnpm 报 esbuild 的错：
+If pnpm reports esbuild error:
 
 ```powershell
 node node_modules\esbuild\install.js
 ```
 
-构建前端：
+Build frontend:
 
 ```powershell
 pnpm run build
 ```
 
-构建 WASM：
+Build WASM:
 
 ```powershell
 cd ..
@@ -91,57 +94,57 @@ New-Item -ItemType Directory -Force 'dist' | Out-Null
 go build -buildvcs=false -buildmode=c-shared -o 'dist\gameap-palworld-plugin.wasm' .
 ```
 
-访问不了官方 Go Proxy 就换镜像：
+If you can't access the official Go Proxy, use a mirror:
 
 ```powershell
 $env:GOPROXY = 'https://goproxy.cn,direct'
 ```
 
-构建完检查一下文件：
+Verify the build output:
 
 ```powershell
 Get-Item 'dist\gameap-palworld-plugin.wasm'
 ```
 
-## 部署
+## Deploy
 
-### 用 GameAP 界面安装
+### Install via GameAP UI
 
-1. 登录 GameAP
-2. 管理 → 插件 → 上传/安装
-3. 选 `dist\gameap-palworld-plugin.wasm`
-4. 点安装
+1. Login to GameAP
+2. Admin → Plugins → Upload/Install
+3. Select `dist\gameap-palworld-plugin.wasm`
+4. Click Install
 
-### 用 API 安装
+### Install via API
 
 ```powershell
 $gameapUrl = 'http://localhost:8025'
 $gameapAdmin = 'admin'
-$gameapPassword = '你的GameAP密码'
+$gameapPassword = 'your-gameap-password'
 $wasm = 'dist\gameap-palworld-plugin.wasm'
 
-# 登录拿 token
+# Login to get token
 $auth = Invoke-RestMethod -Method Post -Uri "$gameapUrl/api/auth/login" `
   -ContentType 'application/json' `
   -Body (@{login=$gameapAdmin;password=$gameapPassword} | ConvertTo-Json)
 $token = if ($auth.token) {$auth.token} elseif ($auth.data.token) {$auth.data.token} else {$auth.access_token}
 
-# 上传插件
+# Upload plugin
 curl.exe -sS -X POST `
   -H "Authorization: Bearer $token" `
   -F "file=@$wasm;type=application/wasm" `
   "$gameapUrl/api/admin/plugins/upload/install"
 ```
 
-### 配置 REST 连接
+### Configure REST Connection
 
-装完插件要配置 Palworld REST 连接信息：
+After installing the plugin, configure the Palworld REST connection:
 
 ```powershell
 $headers = @{Authorization="Bearer $token"}
-$pluginId = 'h4fkd4cukuk6o'  # 在插件管理页面看实际的 ID
+$pluginId = 'h4fkd4cukuk6o'  # Check actual ID in plugin management page
 $serverId = 1
-$palPassword = '你的Palworld管理员密码'
+$palPassword = 'your-palworld-admin-password'
 
 $config = @{
   base_url = 'http://host.docker.internal:8212/v1/api'
@@ -149,22 +152,22 @@ $config = @{
   password = $palPassword
 } | ConvertTo-Json
 
-# 写入配置
+# Write config
 Invoke-RestMethod -Method Post `
   -Uri "$gameapUrl/api/plugins/$pluginId/servers/$serverId/config" `
   -Headers $headers -ContentType 'application/json' -Body $config
 
-# 验证密码没被返回
+# Verify password is not returned
 Invoke-RestMethod `
   -Uri "$gameapUrl/api/plugins/$pluginId/servers/$serverId/config" `
   -Headers $headers
 ```
 
-返回里应该只有 `configured`、`base_url`、`username`，没有密码。
+Response should only contain `configured`, `base_url`, `username` - no password.
 
-## GameAP 容器配置
+## GameAP Container Configuration
 
-在 `docker-compose.local.yml` 里加：
+Add to `docker-compose.local.yml`:
 
 ```yaml
 services:
@@ -174,89 +177,91 @@ services:
       PLUGIN_HTTP_ALLOWED_HOSTS: host.docker.internal
 ```
 
-## API 接口
+Only allow `host.docker.internal`, do not open internal network access.
 
-读取：
+## API Endpoints
+
+Read:
 
 ```powershell
 $base = "$gameapUrl/api/plugins/$pluginId/servers/$serverId"
 
-Invoke-RestMethod "$base/info" -Headers $headers      # 服务器信息
-Invoke-RestMethod "$base/players" -Headers $headers    # 在线玩家
-Invoke-RestMethod "$base/settings" -Headers $headers   # 设置
-Invoke-RestMethod "$base/metrics" -Headers $headers    # 指标
+Invoke-RestMethod "$base/info" -Headers $headers      # Server info
+Invoke-RestMethod "$base/players" -Headers $headers    # Online players
+Invoke-RestMethod "$base/settings" -Headers $headers   # Settings
+Invoke-RestMethod "$base/metrics" -Headers $headers    # Metrics
 ```
 
-管理：
+Management:
 
 ```powershell
-# 发公告
+# Send announcement
 Invoke-RestMethod -Method Post -Uri "$base/announce" `
   -Headers $headers -ContentType 'application/json' `
-  -Body (@{message='测试公告'} | ConvertTo-Json)
+  -Body (@{message='Test announcement'} | ConvertTo-Json)
 
-# 保存世界
+# Save world
 Invoke-RestMethod -Method Post -Uri "$base/save" -Headers $headers
 
-# 踢人（用 userId，不是昵称）
+# Kick player (use userId, not nickname)
 $userId = 'steam_00000000000000000'
 Invoke-RestMethod -Method Post -Uri "$base/kick" `
   -Headers $headers -ContentType 'application/json' `
-  -Body (@{userid=$userId;message='违规'} | ConvertTo-Json)
+  -Body (@{userid=$userId;message='Violation'} | ConvertTo-Json)
 
-# 封禁
+# Ban player
 Invoke-RestMethod -Method Post -Uri "$base/ban" `
   -Headers $headers -ContentType 'application/json' `
-  -Body (@{userid=$userId;message='违规'} | ConvertTo-Json)
+  -Body (@{userid=$userId;message='Violation'} | ConvertTo-Json)
 
-# 解封
+# Unban player
 Invoke-RestMethod -Method Post -Uri "$base/unban" `
   -Headers $headers -ContentType 'application/json' `
   -Body (@{userid=$userId} | ConvertTo-Json)
 ```
 
-服务控制：
+Server control:
 
 ```powershell
-# 安全关服（会联动停止 GameAP 服务）
+# Graceful shutdown (stops GameAP service wrapper)
 Invoke-RestMethod -Method Post -Uri "$base/shutdown" -Headers $headers
 
-# 强制停止
+# Force stop
 Invoke-RestMethod -Method Post -Uri "$base/stop" -Headers $headers
 
-# 启动
+# Start server
 Invoke-RestMethod -Method Post -Uri "$gameapUrl/api/servers/$serverId/start" -Headers $headers
 ```
 
-安全关服和强制停止都要联动 GameAP 服务，不能单独调 Palworld REST。
+Graceful shutdown and force stop require GameAP service coordination, do not call Palworld REST directly.
 
-## 常见问题
+## Troubleshooting
 
-### 点插件导致 GameAP 登出
+### Clicking plugin causes GameAP logout
 
-Palworld REST 返回 401/403 时，WASM 后端会转成 502，不会触发 GameAP 登出。如果你遇到了，检查是不是前端直接调了 Palworld REST。
+When Palworld REST returns 401/403, the WASM backend converts it to 502, which won't trigger GameAP logout. If you experience this, check if the frontend is calling Palworld REST directly.
 
-### 按钮没反应
+### Buttons not responding
 
-- 公告不能为空
-- 踢人/封禁要选在线玩家
-- 解封要填完整 `userId`
-- 刷新页面看看有没有报错
-- 浏览器 `Ctrl+F5` 清缓存
+- Announcement cannot be empty
+- Kick/ban must select online players
+- Unban requires full `userId`
+- Refresh page to check for errors
+- Browser `Ctrl+F5` to clear cache
 
-### 关服后又自动启动
+### Server restarts after shutdown
 
-这是因为 Shawl 包装器会自动重启。正确流程：
+This is caused by the Shawl wrapper auto-restart. Correct flow:
 
-1. 调 Palworld `/shutdown`
-2. 马上调 GameAP `/api/servers/{id}/stop`
-3. 等服务停止、进程数为 0
+1. Call Palworld `/shutdown`
+2. Immediately call GameAP `/api/servers/{id}/stop`
+3. Wait for service to stop and process count to be 0
 
-### 世界快照返回 501
+### World snapshot returns 501
 
-当前 Palworld 版本不支持这个功能，插件会返回 501。其他功能正常。
+Current Palworld version doesn't support this feature, plugin returns 501. Other features work normally.
 
-### esbuild 安装失败
+### esbuild installation failed
 
 ```powershell
 cd frontend
@@ -264,7 +269,7 @@ node node_modules\esbuild\install.js
 node node_modules\vite\bin\vite.js build
 ```
 
-### Go 缓存问题
+### Go cache issues
 
 ```powershell
 $env:GOCACHE = "$(pwd)\go-cache"
@@ -272,45 +277,45 @@ go clean -cache
 go build -buildvcs=false -buildmode=c-shared -o 'dist\gameap-palworld-plugin.wasm' .
 ```
 
-## 更新插件
+## Update Plugin
 
-改了前端或后端代码后：
+After modifying frontend or backend code:
 
 ```powershell
-# 构建
+# Build
 .\build.ps1
 
-# 在 GameAP 卸载旧插件
-# 上传新 wasm
-# 重新配置 REST 连接
-# 重启容器
+# Uninstall old plugin in GameAP
+# Upload new wasm
+# Reconfigure REST connection
+# Restart container
 docker restart gameap
 
-# 浏览器 Ctrl+F5
+# Browser Ctrl+F5
 ```
 
-## 调试
+## Debugging
 
-看日志：
+View logs:
 
 ```powershell
 docker logs gameap --tail 100 -f
 docker logs gameap 2>&1 | Select-String -Pattern "plugin|palworld"
 ```
 
-测试 Palworld REST 连通性：
+Test Palworld REST connectivity:
 
 ```powershell
-$pair = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("admin:你的密码"))
+$pair = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("admin:your-password"))
 Invoke-RestMethod 'http://localhost:8212/v1/api/info' -Headers @{Authorization="Basic $pair"}
 ```
 
-看已安装插件：
+Check installed plugins:
 
 ```powershell
 Invoke-RestMethod "$gameapUrl/api/admin/plugins/loaded" -Headers $headers
 ```
 
-## 许可证
+## License
 
 MIT
