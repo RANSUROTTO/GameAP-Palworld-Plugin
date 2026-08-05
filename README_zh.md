@@ -8,11 +8,11 @@
 
 | 服务器 | 玩家 | 公告 |
 |:---:|:---:|:---:|
-| ![服务器](docs/images/screenshot-server.png) | ![玩家](docs/images/screenshot-players.png) | ![公告](docs/images/screenshot-announce.png) |
+| ![服务器](docs/images/server.png) | ![玩家](docs/images/players.png) | ![公告](docs/images/announce.png) |
 
 | 玩家管理 | 世界观 |
 |:---:|:---:|
-| ![玩家管理](docs/images/screenshot-player-mgmt.png) | ![世界观](docs/images/screenshot-world.png) |
+| ![玩家管理](docs/images/player-mgmt.png) | ![世界观](docs/images/world.png) |
 
 ## 功能
 

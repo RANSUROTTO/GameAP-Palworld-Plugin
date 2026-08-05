@@ -8,11 +8,11 @@ A native Palworld server management tab for GameAP. Uses WASM backend to proxy t
 
 | Server | Players | Announce |
 |:---:|:---:|:---:|
-| ![Server](docs/images/screenshot-server.png) | ![Players](docs/images/screenshot-players.png) | ![Announce](docs/images/screenshot-announce.png) |
+| ![Server](docs/images/server.png) | ![Players](docs/images/players.png) | ![Announce](docs/images/announce.png) |
 
 | Player Management | World Settings |
 |:---:|:---:|
-| ![Player Management](docs/images/screenshot-player-mgmt.png) | ![World Settings](docs/images/screenshot-world.png) |
+| ![Player Management](docs/images/player-mgmt.png) | ![World Settings](docs/images/world.png) |
 
 ## Features
 
